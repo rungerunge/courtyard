@@ -68,7 +68,7 @@ export default async function OpeningPage({ params, searchParams }: Props) {
   }
 
   // Check if opening is complete
-  const isComplete = [OpeningStatus.COMPLETED, OpeningStatus.REVEALED].includes(opening.status);
+  const isComplete = opening.status === OpeningStatus.COMPLETED || opening.status === OpeningStatus.REVEALED;
   const isFailed = opening.status === OpeningStatus.FAILED;
   const isPending = opening.status === OpeningStatus.PENDING || opening.status === OpeningStatus.PROCESSING;
 
