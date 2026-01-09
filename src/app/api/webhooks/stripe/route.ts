@@ -157,3 +157,4 @@ async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
   await handlePaymentFailed(opening.id);
 }
 
+

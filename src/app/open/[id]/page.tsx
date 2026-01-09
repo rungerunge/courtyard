@@ -94,3 +94,4 @@ export default async function OpeningPage({ params, searchParams }: Props) {
   );
 }
 
+

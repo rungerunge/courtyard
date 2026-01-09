@@ -117,3 +117,4 @@ export function getTierBgClass(tierName: string): string {
   return tierBgs[tierName.toLowerCase()] || "bg-surface";
 }
 
+

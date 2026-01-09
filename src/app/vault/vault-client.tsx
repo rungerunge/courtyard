@@ -351,3 +351,4 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
   );
 }
 
+
