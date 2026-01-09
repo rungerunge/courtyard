@@ -1,6 +1,6 @@
 import prisma from "./prisma";
-import { withLock, invalidatePackHealth, invalidatePackHealthForItem, canSellPack, updatePackStatusFromHealth } from "./pack-health";
-import { redis } from "./redis";
+import { invalidatePackHealth, invalidatePackHealthForItem, canSellPack, updatePackStatusFromHealth } from "./pack-health";
+import { redis, withLock } from "./redis";
 import { ItemStatus, OpeningStatus, PackStatus, HoldingStatus } from "@prisma/client";
 import type { PackOpeningResult, ItemWithTier } from "@/types";
 
