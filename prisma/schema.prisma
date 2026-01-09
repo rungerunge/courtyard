@@ -1,0 +1,490 @@
+// Courtyard MVP - Prisma Schema
+// Custodial vault + pack opening platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  passwordHash  String?
+  image         String?
+  
+  // Balance for marketplace
+  balanceCents  Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  packOpenings  PackOpening[]
+  vaultHoldings VaultHolding[]
+  listings      Listing[]
+  shipmentRequests ShipmentRequest[]
+  
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================
+// ADMIN USERS
+// ============================================
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String?
+  role         AdminRole @default(OPERATOR)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relations
+  auditLogs    AuditLog[]
+  
+  @@map("admin_users")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  adminUserId String
+  action      String
+  entityType  String
+  entityId    String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id])
+  
+  @@index([adminUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// INVENTORY & ITEMS
+// ============================================
+
+enum ItemStatus {
+  AVAILABLE    // In pool, can be assigned
+  RESERVED     // Temporarily locked during assignment
+  ASSIGNED     // Assigned to a user via pack opening
+  LISTED       // Listed for resale
+  SHIPPING     // Being shipped to user
+  SHIPPED      // Shipped and out of system
+}
+
+model ItemTier {
+  id           String   @id @default(cuid())
+  name         String   @unique  // e.g., "Legendary", "Epic", "Rare", "Common"
+  displayOrder Int      @default(0)
+  color        String   // Hex color for UI
+  minValue     Int      @default(0)  // Minimum value in cents
+  maxValue     Int?     // Maximum value in cents (optional)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  items        Item[]
+  packGuarantees PackGuarantee[]
+  packTierWeights PackTierWeight[]
+  
+  @@map("item_tiers")
+}
+
+model Item {
+  id              String     @id @default(cuid())
+  sku             String     @unique
+  name            String
+  description     String?    @db.Text
+  images          String[]   // Array of image URLs
+  
+  // Classification
+  tierId          String
+  collection      String?    // e.g., "Sports Cards", "Pokemon", etc.
+  category        String?    // Sub-category
+  
+  // Physical details
+  condition       String?    // e.g., "Near Mint", "PSA 10"
+  gradeInfo       String?    // Grading details
+  serialNumber    String?    // Unique identifier
+  
+  // Value
+  estimatedValue  Int        // Value in cents
+  
+  // Status tracking
+  status          ItemStatus @default(AVAILABLE)
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  // Relations
+  tier            ItemTier   @relation(fields: [tierId], references: [id])
+  packPoolItems   PackPoolItem[]
+  assignment      Assignment?
+  vaultHolding    VaultHolding?
+  
+  @@index([tierId])
+  @@index([status])
+  @@index([collection])
+  @@index([estimatedValue])
+  @@map("items")
+}
+
+// ============================================
+// PACK PRODUCTS & CONFIGURATION
+// ============================================
+
+enum PackStatus {
+  DRAFT        // Not yet published
+  ACTIVE       // Available for purchase
+  PAUSED       // Temporarily unavailable
+  OUT_OF_STOCK // Insufficient inventory
+  RETIRED      // Permanently unavailable
+}
+
+model PackProduct {
+  id          String     @id @default(cuid())
+  name        String
+  description String?    @db.Text
+  images      String[]   // Pack images
+  
+  // Pricing
+  priceInCents Int
+  
+  // Supply management
+  maxSupply   Int?       // Null = unlimited (based on pool)
+  soldCount   Int        @default(0)
+  
+  // Status
+  status      PackStatus @default(DRAFT)
+  
+  // Display
+  displayOrder Int       @default(0)
+  featured    Boolean    @default(false)
+  
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  config      PackConfig?
+  poolItems   PackPoolItem[]
+  openings    PackOpening[]
+  
+  @@index([status])
+  @@index([featured])
+  @@map("pack_products")
+}
+
+model PackConfig {
+  id            String   @id @default(cuid())
+  packProductId String   @unique
+  
+  // Config metadata
+  description   String?  @db.Text  // Internal description of pack rules
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  packProduct   PackProduct @relation(fields: [packProductId], references: [id], onDelete: Cascade)
+  guarantees    PackGuarantee[]
+  tierWeights   PackTierWeight[]
+  
+  @@map("pack_configs")
+}
+
+// Hard guarantee - pack MUST include items meeting this criteria
+model PackGuarantee {
+  id           String     @id @default(cuid())
+  packConfigId String
+  tierId       String
+  minCount     Int        @default(1)  // Minimum items of this tier guaranteed
+  
+  packConfig   PackConfig @relation(fields: [packConfigId], references: [id], onDelete: Cascade)
+  tier         ItemTier   @relation(fields: [tierId], references: [id])
+  
+  @@unique([packConfigId, tierId])
+  @@map("pack_guarantees")
+}
+
+// Tier probability weights for random selection
+model PackTierWeight {
+  id           String     @id @default(cuid())
+  packConfigId String
+  tierId       String
+  weight       Int        @default(1)  // Relative weight for selection
+  
+  packConfig   PackConfig @relation(fields: [packConfigId], references: [id], onDelete: Cascade)
+  tier         ItemTier   @relation(fields: [tierId], references: [id])
+  
+  @@unique([packConfigId, tierId])
+  @@map("pack_tier_weights")
+}
+
+// Links items to pack pools (which items can be assigned from this pack)
+model PackPoolItem {
+  packProductId String
+  itemId        String
+  
+  addedAt       DateTime @default(now())
+  
+  packProduct   PackProduct @relation(fields: [packProductId], references: [id], onDelete: Cascade)
+  item          Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  
+  @@id([packProductId, itemId])
+  @@map("pack_pool_items")
+}
+
+// ============================================
+// PACK OPENINGS & ASSIGNMENTS
+// ============================================
+
+enum OpeningStatus {
+  PENDING     // Payment initiated, awaiting confirmation
+  PROCESSING  // Payment confirmed, assigning item
+  COMPLETED   // Item assigned, ready for reveal
+  REVEALED    // User has seen the result
+  FAILED      // Something went wrong
+  REFUNDED    // Payment refunded
+}
+
+model PackOpening {
+  id              String        @id @default(cuid())
+  userId          String
+  packProductId   String
+  
+  // Payment tracking
+  stripePaymentId String?       @unique
+  stripeSessionId String?       @unique
+  amountPaid      Int           // Amount in cents
+  
+  // Status
+  status          OpeningStatus @default(PENDING)
+  
+  // Timestamps
+  createdAt       DateTime      @default(now())
+  paidAt          DateTime?
+  assignedAt      DateTime?
+  revealedAt      DateTime?
+  
+  // Relations
+  user            User          @relation(fields: [userId], references: [id])
+  packProduct     PackProduct   @relation(fields: [packProductId], references: [id])
+  assignment      Assignment?
+  
+  @@index([userId])
+  @@index([packProductId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("pack_openings")
+}
+
+// Immutable record of item assignment
+model Assignment {
+  id            String      @id @default(cuid())
+  openingId     String      @unique
+  itemId        String      @unique
+  
+  // Snapshot of item value at assignment time
+  valueAtAssignment Int
+  tierAtAssignment  String
+  
+  // Immutable timestamp
+  assignedAt    DateTime    @default(now())
+  
+  // Relations
+  opening       PackOpening @relation(fields: [openingId], references: [id])
+  item          Item        @relation(fields: [itemId], references: [id])
+  vaultHolding  VaultHolding?
+  
+  @@index([assignedAt])
+  @@map("assignments")
+}
+
+// ============================================
+// VAULT & HOLDINGS
+// ============================================
+
+enum HoldingStatus {
+  HOLDING   // In user's vault
+  LISTED    // Listed for resale
+  SHIPPING  // Shipment requested
+  SHIPPED   // Shipped out
+}
+
+model VaultHolding {
+  id           String        @id @default(cuid())
+  userId       String
+  itemId       String        @unique
+  assignmentId String        @unique
+  
+  status       HoldingStatus @default(HOLDING)
+  
+  acquiredAt   DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  user         User          @relation(fields: [userId], references: [id])
+  item         Item          @relation(fields: [itemId], references: [id])
+  assignment   Assignment    @relation(fields: [assignmentId], references: [id])
+  listing      Listing?
+  shipmentRequest ShipmentRequest?
+  
+  @@index([userId])
+  @@index([status])
+  @@map("vault_holdings")
+}
+
+// ============================================
+// MARKETPLACE (SIMPLIFIED)
+// ============================================
+
+enum ListingStatus {
+  ACTIVE    // Available for purchase
+  SOLD      // Purchased by another user
+  CANCELLED // Cancelled by seller
+  EXPIRED   // Auto-expired
+}
+
+model Listing {
+  id              String        @id @default(cuid())
+  vaultHoldingId  String        @unique
+  sellerId        String
+  
+  askingPrice     Int           // Price in cents
+  status          ListingStatus @default(ACTIVE)
+  
+  // Buyer info (if sold)
+  buyerId         String?
+  soldAt          DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  expiresAt       DateTime?
+  
+  // Relations
+  vaultHolding    VaultHolding  @relation(fields: [vaultHoldingId], references: [id])
+  seller          User          @relation(fields: [sellerId], references: [id])
+  
+  @@index([sellerId])
+  @@index([status])
+  @@index([askingPrice])
+  @@map("listings")
+}
+
+// ============================================
+// SHIPPING
+// ============================================
+
+enum ShipmentStatus {
+  PENDING     // Request submitted
+  PROCESSING  // Being prepared
+  SHIPPED     // In transit
+  DELIVERED   // Delivered
+  FAILED      // Delivery failed
+}
+
+model ShipmentRequest {
+  id             String         @id @default(cuid())
+  vaultHoldingId String         @unique
+  userId         String
+  
+  // Shipping address
+  recipientName  String
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  state          String
+  postalCode     String
+  country        String         @default("US")
+  phone          String?
+  
+  // Tracking
+  status         ShipmentStatus @default(PENDING)
+  carrier        String?
+  trackingNumber String?
+  
+  // Costs
+  shippingCost   Int            @default(0)  // In cents
+  
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  
+  // Relations
+  vaultHolding   VaultHolding   @relation(fields: [vaultHoldingId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([status])
+  @@map("shipment_requests")
+}
