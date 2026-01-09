@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Courtyard Design System */
 :root {
@@ -49,35 +51,6 @@
   --radius-xl: 16px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
-  --color-accent-muted: var(--accent-muted);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-muted: var(--text-muted);
-  --color-error: var(--error);
-  --color-error-muted: var(--error-muted);
-  --color-warning: var(--warning);
-  --color-warning-muted: var(--warning-muted);
-  --color-success: var(--success);
-  --color-success-muted: var(--success-muted);
-  --color-info: var(--info);
-  --color-info-muted: var(--info-muted);
-  --color-border: var(--border);
-  --color-border-muted: var(--border-muted);
-  --color-tier-legendary: var(--tier-legendary);
-  --color-tier-epic: var(--tier-epic);
-  --color-tier-rare: var(--tier-rare);
-  --color-tier-common: var(--tier-common);
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
-
 /* Base styles */
 * {
   box-sizing: border-box;
@@ -90,7 +63,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
@@ -200,4 +173,32 @@ body {
 
 .glow-common {
   box-shadow: 0 0 10px rgba(156, 163, 175, 0.3);
+}
+
+/* Utility classes */
+@layer utilities {
+  .bg-background {
+    background-color: var(--background);
+  }
+  .bg-surface {
+    background-color: var(--surface);
+  }
+  .bg-surface-elevated {
+    background-color: var(--surface-elevated);
+  }
+  .bg-accent {
+    background-color: var(--accent);
+  }
+  .text-foreground {
+    color: var(--foreground);
+  }
+  .text-text-secondary {
+    color: var(--text-secondary);
+  }
+  .text-accent {
+    color: var(--accent);
+  }
+  .border-border {
+    border-color: var(--border);
+  }
 }
