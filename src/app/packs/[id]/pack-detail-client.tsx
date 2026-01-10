@@ -173,6 +173,7 @@ export function PackDetailClient({
                   src={pack.images[0]}
                   alt={pack.name}
                   fill
+                  unoptimized
                   className="object-cover"
                   priority
                 />
@@ -373,6 +374,7 @@ export function PackDetailClient({
                         src={item.images[0]}
                         alt={item.name}
                         fill
+                        unoptimized
                         className="object-cover"
                       />
                     ) : (

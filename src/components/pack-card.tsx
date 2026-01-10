@@ -69,6 +69,7 @@ export function PackCard({
                 src={images[0]}
                 alt={name}
                 fill
+                unoptimized
                 className="object-cover transition-transform duration-500 group-hover:scale-110"
               />
             ) : (

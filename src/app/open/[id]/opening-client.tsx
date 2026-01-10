@@ -321,6 +321,7 @@ export function OpeningClient({
                     src={item.images[0]}
                     alt={item.name}
                     fill
+                    unoptimized
                     className="object-cover"
                     priority
                   />

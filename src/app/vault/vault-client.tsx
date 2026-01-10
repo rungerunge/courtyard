@@ -202,6 +202,7 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
                             src={holding.item.images[0]}
                             alt={holding.item.name}
                             fill
+                            unoptimized
                             className="object-cover"
                           />
                         ) : (
