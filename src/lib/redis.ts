@@ -240,12 +240,16 @@ export const redis = {
     }
     return client.get(key);
   },
-  set: async (key: string, value: string, ...args: unknown[]) => {
+  set: async (key: string, value: string, mode?: string, ttlValue?: number, nx?: string) => {
     const client = await getRedisClient();
     if (!client) {
       let ttl: number | null = null;
-      if (args[0] === "EX" && typeof args[1] === "number") {
-        ttl = args[1] * 1000;
+      if (mode === "EX" && typeof ttlValue === "number") {
+        ttl = ttlValue * 1000;
+      }
+      // Handle NX (only set if not exists) - check for locks
+      if (nx === "NX" && memoryStore.has(key)) {
+        return null;
       }
       memoryStore.set(key, {
         value,
@@ -253,7 +257,13 @@ export const redis = {
       });
       return "OK";
     }
-    return client.set(key, value, ...(args as [string, number]));
+    if (mode === "EX" && ttlValue !== undefined) {
+      if (nx === "NX") {
+        return client.set(key, value, "EX", ttlValue, "NX");
+      }
+      return client.set(key, value, "EX", ttlValue);
+    }
+    return client.set(key, value);
   },
   del: async (key: string) => {
     const client = await getRedisClient();
