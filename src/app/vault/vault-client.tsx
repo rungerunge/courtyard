@@ -175,9 +175,12 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
                 <p className="text-text-secondary mb-4">
                   Open some packs to start building your collection!
                 </p>
-                <Button asChild>
-                  <a href="/">Browse Packs</a>
-                </Button>
+                <a
+                  href="/"
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-black hover:bg-accent-hover transition-colors"
+                >
+                  Browse Packs
+                </a>
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
