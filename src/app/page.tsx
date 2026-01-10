@@ -3,6 +3,9 @@ import { PackCard } from "@/components/pack-card";
 import { PackStatus } from "@prisma/client";
 import { Sparkles, Shield, Truck } from "lucide-react";
 
+// Force dynamic rendering - database not accessible at build time
+export const dynamic = "force-dynamic";
+
 /**
  * Home Page - Pack Store
  * 

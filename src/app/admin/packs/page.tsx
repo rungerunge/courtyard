@@ -4,6 +4,9 @@ import { Card, Badge, Button } from "@/components/ui";
 import { Gift, Plus, AlertTriangle, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
+// Force dynamic rendering - database not accessible at build time
+export const dynamic = "force-dynamic";
+
 /**
  * Admin Packs Page
  * 

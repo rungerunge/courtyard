@@ -13,6 +13,9 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { ItemStatus, PackStatus, OpeningStatus } from "@prisma/client";
 
+// Force dynamic rendering - database not accessible at build time
+export const dynamic = "force-dynamic";
+
 /**
  * Admin Dashboard
  * 
