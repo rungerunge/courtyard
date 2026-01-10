@@ -6,11 +6,15 @@ import Stripe from "stripe";
  * Handles payment processing for pack purchases
  */
 
-if (!process.env.STRIPE_SECRET_KEY) {
+// Use a placeholder key during build to prevent crashes
+// Real key is required at runtime
+const stripeKey = process.env.STRIPE_SECRET_KEY || "sk_test_placeholder";
+
+if (!process.env.STRIPE_SECRET_KEY && typeof window === "undefined" && process.env.NODE_ENV === "production") {
   console.warn("STRIPE_SECRET_KEY not configured");
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+export const stripe = new Stripe(stripeKey, {
   apiVersion: "2025-12-15.clover",
   typescript: true,
 });
