@@ -17,17 +17,17 @@ const PACK_IMAGES = {
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Clean existing data first
+  // Clean existing data first (order matters for foreign keys)
   console.log("Cleaning existing data...");
+  await prisma.listing.deleteMany();
+  await prisma.shipmentRequest.deleteMany();
+  await prisma.vaultHolding.deleteMany();
+  await prisma.assignment.deleteMany();
+  await prisma.packOpening.deleteMany();
   await prisma.packPoolItem.deleteMany();
   await prisma.packTierWeight.deleteMany();
   await prisma.packGuarantee.deleteMany();
   await prisma.packConfig.deleteMany();
-  await prisma.assignment.deleteMany();
-  await prisma.vaultHolding.deleteMany();
-  await prisma.packOpening.deleteMany();
-  await prisma.listing.deleteMany();
-  await prisma.shipmentRequest.deleteMany();
   await prisma.packProduct.deleteMany();
   await prisma.item.deleteMany();
   await prisma.itemTier.deleteMany();
