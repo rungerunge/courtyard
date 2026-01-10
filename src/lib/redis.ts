@@ -25,7 +25,6 @@ async function getRedisClient() {
     const Redis = (await import("ioredis")).default;
     redisClient = new Redis(process.env.REDIS_URL!, {
       maxRetriesPerRequest: 3,
-      retryDelayOnFailover: 100,
       enableReadyCheck: true,
       connectTimeout: 10000,
       lazyConnect: true,
