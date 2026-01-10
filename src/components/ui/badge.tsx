@@ -23,6 +23,7 @@ const badgeVariants = cva(
         success: "bg-success-muted text-success border border-success/50",
         warning: "bg-warning-muted text-warning border border-warning/50",
         error: "bg-error-muted text-error border border-error/50",
+        info: "bg-info-muted text-info border border-info/50",
       },
     },
     defaultVariants: {
