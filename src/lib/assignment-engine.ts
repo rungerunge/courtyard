@@ -38,6 +38,7 @@ export async function assignItemToOpening(
   const opening = await prisma.packOpening.findUnique({
     where: { id: openingId },
     include: {
+      assignment: true,
       packProduct: {
         include: {
           config: {
