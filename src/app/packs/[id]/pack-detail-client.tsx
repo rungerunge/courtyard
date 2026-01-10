@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,9 @@ import {
   ChevronLeft, 
   AlertCircle,
   CheckCircle,
-  Info
+  Info,
+  Wallet,
+  Plus
 } from "lucide-react";
 
 /**
@@ -68,14 +70,51 @@ export function PackDetailClient({
   const router = useRouter();
   const { data: session, status: authStatus } = useSession();
   const [purchasing, setPurchasing] = useState(false);
+  const [addingBalance, setAddingBalance] = useState(false);
   const [error, setError] = useState("");
+  const [balance, setBalance] = useState<number | null>(null);
 
   const remaining = pack.maxSupply ? pack.maxSupply - pack.soldCount : null;
   const isLowStock = remaining !== null && remaining <= 10 && remaining > 0;
+  const hasEnoughBalance = balance !== null && balance >= pack.priceInCents;
+
+  // Fetch balance when logged in
+  useEffect(() => {
+    if (session?.user) {
+      fetch("/api/user/add-balance")
+        .then((res) => res.json())
+        .then((data) => setBalance(data.balance))
+        .catch(() => setBalance(0));
+    }
+  }, [session]);
+
+  const handleAddBalance = async () => {
+    setAddingBalance(true);
+    try {
+      const res = await fetch("/api/user/add-balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: 100 }), // Add $100
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBalance(data.newBalance);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setAddingBalance(false);
+    }
+  };
 
   const handlePurchase = async () => {
     if (!session) {
       router.push(`/login?redirect=/packs/${pack.id}`);
+      return;
+    }
+
+    if (!hasEnoughBalance) {
+      setError("Insufficient balance. Add more funds to continue.");
       return;
     }
 
@@ -92,13 +131,15 @@ export function PackDetailClient({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to initiate purchase");
+        setError(data.error || "Failed to process purchase");
         return;
       }
 
-      // Redirect to Stripe checkout
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      // Redirect to opening page
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
+      } else if (data.openingId) {
+        router.push(`/open/${data.openingId}`);
       }
     } catch {
       setError("An error occurred. Please try again.");
@@ -182,6 +223,39 @@ export function PackDetailClient({
                 </span>
               )}
             </div>
+
+            {/* Balance Display */}
+            {session && balance !== null && (
+              <Card className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-accent-muted">
+                      <Wallet className="h-5 w-5 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-text-secondary">Your Balance</p>
+                      <p className={`text-xl font-bold ${hasEnoughBalance ? "text-accent" : "text-error"}`}>
+                        {formatCurrency(balance)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddBalance}
+                    disabled={addingBalance}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    {addingBalance ? "Adding..." : "Add $100"}
+                  </Button>
+                </div>
+                {!hasEnoughBalance && (
+                  <p className="text-sm text-error mt-2">
+                    You need {formatCurrency(pack.priceInCents - balance)} more to open this pack
+                  </p>
+                )}
+              </Card>
+            )}
 
             {/* Guarantees */}
             {guarantees.length > 0 && (

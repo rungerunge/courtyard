@@ -2,15 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createPackCheckoutSession } from "@/lib/stripe";
 import { canSellPack } from "@/lib/pack-health";
 import { PackStatus, OpeningStatus } from "@prisma/client";
+import { assignItemToOpening } from "@/lib/assignment-engine";
 
 /**
- * Checkout API
+ * Checkout API - Test Balance System
  * 
  * POST /api/purchase/checkout
- * Creates a Stripe checkout session for pack purchase
+ * Purchases a pack using the user's test balance
  */
 
 export async function POST(request: NextRequest) {
@@ -69,50 +69,86 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create pending pack opening record
-    const opening = await prisma.packOpening.create({
-      data: {
-        userId: session.user.id,
-        packProductId,
-        amountPaid: pack.priceInCents,
-        status: OpeningStatus.PENDING,
-      },
+    // Get user's balance
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { balanceCents: true },
     });
 
-    // Get app URL
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
 
-    // Create Stripe checkout session
-    const checkoutSession = await createPackCheckoutSession({
-      packProductId,
-      packName: pack.name,
-      priceInCents: pack.priceInCents,
-      userId: session.user.id,
-      userEmail: session.user.email!,
-      successUrl: `${appUrl}/open/${opening.id}?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${appUrl}/packs/${packProductId}?cancelled=true`,
+    // Check if user has enough balance
+    if (user.balanceCents < pack.priceInCents) {
+      return NextResponse.json(
+        { 
+          error: "Insufficient balance",
+          required: pack.priceInCents,
+          available: user.balanceCents,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Deduct balance and create opening in a transaction
+    const opening = await prisma.$transaction(async (tx) => {
+      // Deduct balance
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { 
+          balanceCents: { decrement: pack.priceInCents } 
+        },
+      });
+
+      // Create pack opening record
+      const newOpening = await tx.packOpening.create({
+        data: {
+          userId: session.user.id,
+          packProductId,
+          amountPaid: pack.priceInCents,
+          status: OpeningStatus.PROCESSING,
+          paidAt: new Date(),
+        },
+      });
+
+      return newOpening;
     });
 
-    // Update opening with Stripe session ID
-    await prisma.packOpening.update({
-      where: { id: opening.id },
-      data: { stripeSessionId: checkoutSession.id },
-    });
+    // Assign item to opening
+    try {
+      await assignItemToOpening(opening.id);
+    } catch (assignError) {
+      // Refund balance if assignment fails
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { 
+          balanceCents: { increment: pack.priceInCents } 
+        },
+      });
+      
+      await prisma.packOpening.update({
+        where: { id: opening.id },
+        data: { status: OpeningStatus.FAILED },
+      });
+
+      throw assignError;
+    }
 
     return NextResponse.json({
       success: true,
       openingId: opening.id,
-      checkoutUrl: checkoutSession.url,
+      // No checkout URL - redirect directly to opening page
+      redirectUrl: `/open/${opening.id}`,
     });
   } catch (error) {
     console.error("Checkout error:", error);
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: "Failed to process purchase" },
       { status: 500 }
     );
   }
 }
-
-
-
-
