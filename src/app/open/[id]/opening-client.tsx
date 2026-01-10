@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -317,13 +316,10 @@ export function OpeningClient({
             <Card className={`overflow-hidden ${glowClass}`}>
               <div className="relative aspect-[3/4] bg-surface-elevated">
                 {item.images[0] ? (
-                  <Image
+                  <img
                     src={item.images[0]}
                     alt={item.name}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    priority
+                    className="absolute inset-0 w-full h-full object-cover"
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center">

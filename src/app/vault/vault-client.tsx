@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { Card, Badge, Button } from "@/components/ui";
 import { formatCurrency, formatDate, getTierGlowClass } from "@/lib/utils";
@@ -198,12 +197,10 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
                     }`}>
                       <div className="relative aspect-[3/4] bg-surface-elevated">
                         {holding.item.images[0] ? (
-                          <Image
+                          <img
                             src={holding.item.images[0]}
                             alt={holding.item.name}
-                            fill
-                            unoptimized
-                            className="object-cover"
+                            className="absolute inset-0 w-full h-full object-cover"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center">

@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion } from "framer-motion";
 import { Card, Badge, Button } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils";
@@ -65,12 +64,10 @@ export function PackCard({
           {/* Image Section */}
           <div className="relative aspect-[4/3] overflow-hidden bg-surface-elevated">
             {images[0] ? (
-              <Image
+              <img
                 src={images[0]}
                 alt={name}
-                fill
-                unoptimized
-                className="object-cover transition-transform duration-500 group-hover:scale-110"
+                className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
             ) : (
               <div className="flex h-full items-center justify-center">

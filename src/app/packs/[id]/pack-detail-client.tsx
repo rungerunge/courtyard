@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -169,13 +168,10 @@ export function PackDetailClient({
           >
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-surface-elevated">
               {pack.images[0] ? (
-                <Image
+                <img
                   src={pack.images[0]}
                   alt={pack.name}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                  priority
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center">
@@ -370,12 +366,10 @@ export function PackDetailClient({
                 <Card key={item.id} className="overflow-hidden">
                   <div className="relative aspect-[3/4] bg-surface-elevated">
                     {item.images[0] ? (
-                      <Image
+                      <img
                         src={item.images[0]}
                         alt={item.name}
-                        fill
-                        unoptimized
-                        className="object-cover"
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center">
