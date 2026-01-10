@@ -16,13 +16,15 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Home
+  Home,
+  DollarSign
 } from "lucide-react";
 
 /**
  * Opening Client Component
  * 
  * Handles the pack opening animation and reveal
+ * Includes instant buyback option
  */
 
 interface OpeningClientProps {
@@ -32,6 +34,7 @@ interface OpeningClientProps {
   isComplete: boolean;
   isFailed: boolean;
   isPending: boolean;
+  holdingId: string | null;
   item: {
     id: string;
     name: string;
@@ -46,6 +49,8 @@ interface OpeningClientProps {
 
 type RevealPhase = "intro" | "revealing" | "revealed";
 
+const BUYBACK_RATE = 0.90; // 90%
+
 export function OpeningClient({
   openingId,
   packName,
@@ -53,11 +58,18 @@ export function OpeningClient({
   isComplete,
   isFailed,
   isPending,
+  holdingId,
   item,
 }: OpeningClientProps) {
   const router = useRouter();
   const [phase, setPhase] = useState<RevealPhase>("intro");
   const [hasMarkedRevealed, setHasMarkedRevealed] = useState(false);
+  const [buybackLoading, setBuybackLoading] = useState(false);
+  const [buybackComplete, setBuybackComplete] = useState(false);
+  const [buybackAmount, setBuybackAmount] = useState<number | null>(null);
+
+  // Calculate buyback value
+  const buybackValue = item ? Math.floor(item.estimatedValue * BUYBACK_RATE) : 0;
 
   // Trigger confetti for rare items
   const triggerConfetti = useCallback(() => {
@@ -66,7 +78,6 @@ export function OpeningClient({
     const tier = item.tierName.toLowerCase();
     
     if (tier === "legendary") {
-      // Epic confetti burst for legendary
       const duration = 3000;
       const end = Date.now() + duration;
 
@@ -92,7 +103,6 @@ export function OpeningClient({
       };
       frame();
     } else if (tier === "epic") {
-      // Purple confetti for epic
       confetti({
         particleCount: 100,
         spread: 70,
@@ -100,7 +110,6 @@ export function OpeningClient({
         colors: ["#a855f7", "#9333ea", "#ffffff"],
       });
     } else if (tier === "rare") {
-      // Blue confetti for rare
       confetti({
         particleCount: 50,
         spread: 60,
@@ -124,10 +133,41 @@ export function OpeningClient({
     }
   }, [openingId, hasMarkedRevealed]);
 
+  // Handle instant buyback
+  const handleBuyback = async () => {
+    if (!holdingId || buybackComplete) return;
+    
+    setBuybackLoading(true);
+    try {
+      const res = await fetch("/api/vault/buyback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holdingId }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setBuybackComplete(true);
+        setBuybackAmount(data.buybackAmount);
+        // Trigger green confetti for successful sale
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ["#61ec7d", "#4fd969", "#ffffff"],
+        });
+      }
+    } catch (error) {
+      console.error("Buyback failed:", error);
+    } finally {
+      setBuybackLoading(false);
+    }
+  };
+
   // Auto-advance through phases
   useEffect(() => {
     if (isComplete && item && phase === "intro") {
-      // Start revealing after a short delay
       const timer = setTimeout(() => {
         setPhase("revealing");
       }, 1500);
@@ -137,7 +177,6 @@ export function OpeningClient({
 
   useEffect(() => {
     if (phase === "revealing") {
-      // Show the reveal after animation
       const timer = setTimeout(() => {
         setPhase("revealed");
         triggerConfetti();
@@ -157,7 +196,7 @@ export function OpeningClient({
             Processing Your Pack...
           </h2>
           <p className="text-text-secondary mb-6">
-            Please wait while we confirm your payment and prepare your reveal.
+            Please wait while we prepare your reveal.
           </p>
           <Button variant="secondary" onClick={() => router.refresh()}>
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -180,32 +219,24 @@ export function OpeningClient({
             Something Went Wrong
           </h2>
           <p className="text-text-secondary mb-6">
-            We encountered an issue processing your pack opening. 
-            If you were charged, please contact support for assistance.
+            We encountered an issue. Please contact support.
           </p>
-          <div className="flex flex-col gap-2">
-            <Link href="/">
-              <Button className="w-full">
-                <Home className="h-4 w-4 mr-2" />
-                Return Home
-              </Button>
-            </Link>
-            <Button variant="secondary" onClick={() => router.refresh()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Try Again
+          <Link href="/">
+            <Button className="w-full">
+              <Home className="h-4 w-4 mr-2" />
+              Return Home
             </Button>
-          </div>
+          </Link>
         </Card>
       </div>
     );
   }
 
-  // No item assigned (shouldn't happen)
   if (!item) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
-          <p className="text-text-secondary">No item assigned to this opening.</p>
+          <p className="text-text-secondary">Loading...</p>
         </Card>
       </div>
     );
@@ -226,7 +257,7 @@ export function OpeningClient({
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Intro Phase - Pack Icon */}
+        {/* Intro Phase */}
         {phase === "intro" && (
           <motion.div
             key="intro"
@@ -254,7 +285,7 @@ export function OpeningClient({
           </motion.div>
         )}
 
-        {/* Revealing Phase - Animation */}
+        {/* Revealing Phase */}
         {phase === "revealing" && (
           <motion.div
             key="revealing"
@@ -283,7 +314,7 @@ export function OpeningClient({
           </motion.div>
         )}
 
-        {/* Revealed Phase - Show Item */}
+        {/* Revealed Phase */}
         {phase === "revealed" && (
           <motion.div
             key="revealed"
@@ -353,31 +384,75 @@ export function OpeningClient({
                   )}
                 </div>
 
-                {/* Success message */}
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-success-muted mb-6">
-                  <CheckCircle className="h-5 w-5 text-success" />
-                  <span className="text-sm text-success">
-                    This item has been added to your vault!
-                  </span>
-                </div>
+                {/* Buyback Complete Message */}
+                {buybackComplete && buybackAmount !== null ? (
+                  <div className="flex items-center gap-2 p-4 rounded-lg bg-success-muted mb-6">
+                    <CheckCircle className="h-5 w-5 text-success" />
+                    <div>
+                      <p className="font-medium text-success">Sold for {formatCurrency(buybackAmount)}!</p>
+                      <p className="text-sm text-success/80">Balance updated</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Success message */}
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-success-muted mb-4">
+                      <CheckCircle className="h-5 w-5 text-success" />
+                      <span className="text-sm text-success">
+                        Added to your vault!
+                      </span>
+                    </div>
+
+                    {/* Instant Buyback Option */}
+                    {holdingId && (
+                      <div className="p-4 rounded-lg bg-warning-muted mb-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-warning">Instant Buyback</p>
+                            <p className="text-sm text-warning/80">
+                              Sell now for 90% value
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-warning">
+                              {formatCurrency(buybackValue)}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="warning"
+                          className="w-full mt-3"
+                          onClick={handleBuyback}
+                          loading={buybackLoading}
+                          disabled={buybackLoading}
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Sell for {formatCurrency(buybackValue)}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
 
                 {/* Actions */}
-                <div className="grid grid-cols-3 gap-3">
-                  <Link href="/vault" className="col-span-3 sm:col-span-1">
-                    <Button variant="default" className="w-full">
-                      <Wallet className="h-4 w-4 mr-2" />
-                      Vault
+                {!buybackComplete && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <Link href="/vault" className="col-span-3 sm:col-span-1">
+                      <Button variant="default" className="w-full">
+                        <Wallet className="h-4 w-4 mr-2" />
+                        Vault
+                      </Button>
+                    </Link>
+                    <Button variant="secondary" className="col-span-3 sm:col-span-1">
+                      <Truck className="h-4 w-4 mr-2" />
+                      Ship
                     </Button>
-                  </Link>
-                  <Button variant="secondary" className="col-span-3 sm:col-span-1">
-                    <Truck className="h-4 w-4 mr-2" />
-                    Ship
-                  </Button>
-                  <Button variant="secondary" className="col-span-3 sm:col-span-1">
-                    <Tag className="h-4 w-4 mr-2" />
-                    List
-                  </Button>
-                </div>
+                    <Button variant="secondary" className="col-span-3 sm:col-span-1">
+                      <Tag className="h-4 w-4 mr-2" />
+                      List
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -401,7 +476,3 @@ export function OpeningClient({
     </div>
   );
 }
-
-
-
-

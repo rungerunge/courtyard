@@ -16,13 +16,12 @@ import {
   CheckCircle,
   Info,
   Wallet,
-  Plus
+  Plus,
+  Minus
 } from "lucide-react";
 
 /**
  * Pack Detail Client Component
- * 
- * Client-side interactivity for pack detail page
  */
 
 interface PackDetailClientProps {
@@ -72,10 +71,13 @@ export function PackDetailClient({
   const [addingBalance, setAddingBalance] = useState(false);
   const [error, setError] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   const remaining = pack.maxSupply ? pack.maxSupply - pack.soldCount : null;
   const isLowStock = remaining !== null && remaining <= 10 && remaining > 0;
-  const hasEnoughBalance = balance !== null && balance >= pack.priceInCents;
+  const maxQuantity = Math.min(3, remaining || 3);
+  const totalPrice = pack.priceInCents * quantity;
+  const hasEnoughBalance = balance !== null && balance >= totalPrice;
 
   // Fetch balance when logged in
   useEffect(() => {
@@ -93,7 +95,7 @@ export function PackDetailClient({
       const res = await fetch("/api/user/add-balance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: 100 }), // Add $100
+        body: JSON.stringify({ amount: 100 }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -124,7 +126,7 @@ export function PackDetailClient({
       const res = await fetch("/api/purchase/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packProductId: pack.id }),
+        body: JSON.stringify({ packProductId: pack.id, quantity }),
       });
 
       const data = await res.json();
@@ -135,10 +137,10 @@ export function PackDetailClient({
       }
 
       // Redirect to opening page
-      if (data.redirectUrl) {
-        router.push(data.redirectUrl);
-      } else if (data.openingId) {
+      if (data.openingId) {
         router.push(`/open/${data.openingId}`);
+      } else if (data.redirectUrl) {
+        router.push(data.redirectUrl);
       }
     } catch {
       setError("An error occurred. Please try again.");
@@ -209,17 +211,55 @@ export function PackDetailClient({
               )}
             </div>
 
-            {/* Price */}
-            <div className="flex items-baseline gap-4">
-              <span className="text-4xl font-bold text-accent">
-                {formatCurrency(pack.priceInCents)}
-              </span>
-              {pack.maxSupply && (
-                <span className="text-text-secondary">
-                  {pack.soldCount} / {pack.maxSupply} sold
+            {/* Price & Quantity */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm text-text-secondary">Price per pack</p>
+                  <p className="text-2xl font-bold text-accent">
+                    {formatCurrency(pack.priceInCents)}
+                  </p>
+                </div>
+                {pack.maxSupply && (
+                  <div className="text-right">
+                    <p className="text-sm text-text-secondary">Sold</p>
+                    <p className="text-lg font-medium text-foreground">
+                      {pack.soldCount} / {pack.maxSupply}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Quantity Selector */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-surface-elevated">
+                <span className="text-sm font-medium text-foreground">Quantity</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                    className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-foreground hover:bg-accent hover:text-background disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="text-xl font-bold text-foreground w-8 text-center">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                    disabled={quantity >= maxQuantity}
+                    className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-foreground hover:bg-accent hover:text-background disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                <span className="text-lg font-medium text-foreground">Total</span>
+                <span className="text-2xl font-bold text-accent">
+                  {formatCurrency(totalPrice)}
                 </span>
-              )}
-            </div>
+              </div>
+            </Card>
 
             {/* Balance Display */}
             {session && balance !== null && (
@@ -248,7 +288,7 @@ export function PackDetailClient({
                 </div>
                 {!hasEnoughBalance && (
                   <p className="text-sm text-error mt-2">
-                    You need {formatCurrency(pack.priceInCents - balance)} more to open this pack
+                    You need {formatCurrency(totalPrice - balance)} more
                   </p>
                 )}
               </Card>
@@ -309,16 +349,15 @@ export function PackDetailClient({
               </Card>
             )}
 
-            {/* Info banner */}
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-info-muted">
-              <Info className="h-5 w-5 text-info shrink-0 mt-0.5" />
+            {/* RTP Info banner */}
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-success-muted">
+              <Info className="h-5 w-5 text-success shrink-0 mt-0.5" />
               <div className="text-sm text-text-secondary">
-                <p className="font-medium text-foreground mb-1">
-                  Real Items from Our Vault
+                <p className="font-medium text-success mb-1">
+                  100%+ RTP Guaranteed
                 </p>
                 <p>
-                  All items in this pack are physical collectibles stored in our secure vault. 
-                  After opening, you can keep it in your vault, request shipping, or list for resale.
+                  All packs have 100%+ Return to Player. Instant buyback available at 90% of item value.
                 </p>
               </div>
             </div>
@@ -344,7 +383,7 @@ export function PackDetailClient({
                 : authStatus === "loading"
                 ? "Loading..."
                 : session
-                ? `Open Pack - ${formatCurrency(pack.priceInCents)}`
+                ? `Open ${quantity} Pack${quantity > 1 ? "s" : ""} - ${formatCurrency(totalPrice)}`
                 : "Sign in to Purchase"}
             </Button>
           </motion.div>
@@ -409,7 +448,3 @@ export function PackDetailClient({
     </div>
   );
 }
-
-
-
-

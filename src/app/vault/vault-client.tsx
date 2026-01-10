@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Card, Badge, Button } from "@/components/ui";
 import { formatCurrency, formatDate, getTierGlowClass } from "@/lib/utils";
 import { 
@@ -11,7 +12,8 @@ import {
   Tag, 
   Clock,
   CheckCircle,
-  ExternalLink
+  ExternalLink,
+  DollarSign
 } from "lucide-react";
 
 /**
@@ -62,8 +64,31 @@ interface VaultClientProps {
   };
 }
 
+const BUYBACK_RATE = 0.90;
+
 export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"holdings" | "history">("holdings");
+  const [buybackLoading, setBuybackLoading] = useState<string | null>(null);
+
+  const handleBuyback = async (holdingId: string) => {
+    setBuybackLoading(holdingId);
+    try {
+      const res = await fetch("/api/vault/buyback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holdingId }),
+      });
+
+      if (res.ok) {
+        router.refresh();
+      }
+    } catch (error) {
+      console.error("Buyback failed:", error);
+    } finally {
+      setBuybackLoading(null);
+    }
+  };
 
   return (
     <div className="min-h-screen py-8">
@@ -72,7 +97,7 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Your Vault</h1>
           <p className="text-text-secondary">
-            Manage your collection of items from pack openings
+            Manage your collection. Instant buyback available at 90% value.
           </p>
         </div>
 
@@ -183,99 +208,119 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {holdings.map((holding, index) => (
-                  <motion.div
-                    key={holding.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Card className={`overflow-hidden ${
-                      holding.item.tierName.toLowerCase() === "legendary" 
-                        ? getTierGlowClass("legendary") 
-                        : ""
-                    }`}>
-                      <div className="relative aspect-[3/4] bg-surface-elevated">
-                        {holding.item.images[0] ? (
-                          <img
-                            src={holding.item.images[0]}
-                            alt={holding.item.name}
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center">
-                            <Package className="h-12 w-12 text-text-muted" />
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2">
-                          <Badge
-                            style={{
-                              backgroundColor: `${holding.item.tierColor}30`,
-                              color: holding.item.tierColor,
-                              borderColor: holding.item.tierColor,
-                            }}
-                          >
-                            {holding.item.tierName}
-                          </Badge>
-                        </div>
-                        {holding.status !== "HOLDING" && (
-                          <div className="absolute top-2 right-2">
+                {holdings.map((holding, index) => {
+                  const buybackValue = Math.floor(holding.item.estimatedValue * BUYBACK_RATE);
+                  const isLoading = buybackLoading === holding.id;
+                  
+                  return (
+                    <motion.div
+                      key={holding.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className={`overflow-hidden ${
+                        holding.item.tierName.toLowerCase() === "legendary" 
+                          ? getTierGlowClass("legendary") 
+                          : ""
+                      }`}>
+                        <div className="relative aspect-[3/4] bg-surface-elevated">
+                          {holding.item.images[0] ? (
+                            <img
+                              src={holding.item.images[0]}
+                              alt={holding.item.name}
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center">
+                              <Package className="h-12 w-12 text-text-muted" />
+                            </div>
+                          )}
+                          <div className="absolute top-2 left-2">
                             <Badge
-                              variant={
-                                holding.status === "LISTED" ? "warning" :
-                                holding.status === "SHIPPING" ? "info" :
-                                "success"
-                              }
+                              style={{
+                                backgroundColor: `${holding.item.tierColor}30`,
+                                color: holding.item.tierColor,
+                                borderColor: holding.item.tierColor,
+                              }}
                             >
-                              {holding.status}
+                              {holding.item.tierName}
                             </Badge>
                           </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-foreground line-clamp-1 mb-1">
-                          {holding.item.name}
-                        </h3>
-                        <p className="text-sm text-accent font-medium mb-3">
-                          {formatCurrency(holding.item.estimatedValue)}
-                        </p>
-                        
-                        {holding.status === "HOLDING" && (
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="secondary" className="flex-1">
-                              <Truck className="h-3 w-3 mr-1" />
-                              Ship
-                            </Button>
-                            <Button size="sm" variant="secondary" className="flex-1">
-                              <Tag className="h-3 w-3 mr-1" />
-                              List
-                            </Button>
-                          </div>
-                        )}
-                        
-                        {holding.listing && (
-                          <div className="text-sm text-text-secondary">
-                            Listed for {formatCurrency(holding.listing.askingPrice)}
-                          </div>
-                        )}
-                        
-                        {holding.shipmentRequest && (
-                          <div className="text-sm">
-                            <span className="text-text-secondary">Status: </span>
-                            <span className="text-foreground">
-                              {holding.shipmentRequest.status}
-                            </span>
-                            {holding.shipmentRequest.trackingNumber && (
-                              <Button size="sm" variant="ghost" className="ml-2 p-0 h-auto">
-                                <ExternalLink className="h-3 w-3" />
+                          {holding.status !== "HOLDING" && (
+                            <div className="absolute top-2 right-2">
+                              <Badge
+                                variant={
+                                  holding.status === "LISTED" ? "warning" :
+                                  holding.status === "SHIPPING" ? "info" :
+                                  "success"
+                                }
+                              >
+                                {holding.status}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-semibold text-foreground line-clamp-1 mb-1">
+                            {holding.item.name}
+                          </h3>
+                          <p className="text-sm text-accent font-medium mb-3">
+                            {formatCurrency(holding.item.estimatedValue)}
+                          </p>
+                          
+                          {holding.status === "HOLDING" && (
+                            <div className="space-y-2">
+                              {/* Instant Buyback */}
+                              <Button 
+                                size="sm" 
+                                variant="warning" 
+                                className="w-full"
+                                onClick={() => handleBuyback(holding.id)}
+                                loading={isLoading}
+                                disabled={isLoading}
+                              >
+                                <DollarSign className="h-3 w-3 mr-1" />
+                                Sell for {formatCurrency(buybackValue)}
                               </Button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
+                              
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="secondary" className="flex-1">
+                                  <Truck className="h-3 w-3 mr-1" />
+                                  Ship
+                                </Button>
+                                <Button size="sm" variant="secondary" className="flex-1">
+                                  <Tag className="h-3 w-3 mr-1" />
+                                  List
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {holding.listing && (
+                            <div className="text-sm text-text-secondary">
+                              Listed for {formatCurrency(holding.listing.askingPrice)}
+                            </div>
+                          )}
+                          
+                          {holding.shipmentRequest && (
+                            <div className="text-sm">
+                              <span className="text-text-secondary">Status: </span>
+                              <span className="text-foreground">
+                                {holding.shipmentRequest.status}
+                              </span>
+                              {holding.shipmentRequest.trackingNumber && (
+                                <Button size="sm" variant="ghost" className="ml-2 p-0 h-auto">
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -351,7 +396,3 @@ export function VaultClient({ holdings, openings, stats }: VaultClientProps) {
     </div>
   );
 }
-
-
-
-

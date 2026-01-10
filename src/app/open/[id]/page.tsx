@@ -29,6 +29,7 @@ async function getOpening(id: string, userId: string) {
           item: {
             include: { tier: true },
           },
+          vaultHolding: true, // Include vault holding for buyback
         },
       },
     },
@@ -54,15 +55,11 @@ export default async function OpeningPage({ params, searchParams }: Props) {
   }
 
   // If still pending and we have session_id, wait for webhook
-  // In production, you might want to poll or use websockets
   if (opening.status === OpeningStatus.PENDING && session_id) {
-    // Wait a moment for webhook to process
     await new Promise((resolve) => setTimeout(resolve, 2000));
     
-    // Refresh opening data
     const refreshedOpening = await getOpening(id, session.user.id);
     if (refreshedOpening?.status !== OpeningStatus.PENDING) {
-      // Redirect to refresh page with new data
       redirect(`/open/${id}`);
     }
   }
@@ -72,6 +69,9 @@ export default async function OpeningPage({ params, searchParams }: Props) {
   const isFailed = opening.status === OpeningStatus.FAILED;
   const isPending = opening.status === OpeningStatus.PENDING || opening.status === OpeningStatus.PROCESSING;
 
+  // Get holding ID for buyback
+  const holdingId = opening.assignment?.vaultHolding?.id || null;
+
   return (
     <OpeningClient
       openingId={opening.id}
@@ -80,6 +80,7 @@ export default async function OpeningPage({ params, searchParams }: Props) {
       isComplete={isComplete}
       isFailed={isFailed}
       isPending={isPending}
+      holdingId={holdingId}
       item={opening.assignment?.item ? {
         id: opening.assignment.item.id,
         name: opening.assignment.item.name,
@@ -93,5 +94,3 @@ export default async function OpeningPage({ params, searchParams }: Props) {
     />
   );
 }
-
-
