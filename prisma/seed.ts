@@ -7,11 +7,11 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-// Using picsum.photos for reliable images
+// Using placehold.co for reliable placeholder images
 const PACK_IMAGES = {
-  standard: "https://picsum.photos/seed/pack1/400/500",
-  premium: "https://picsum.photos/seed/pack2/400/500",
-  legendary: "https://picsum.photos/seed/pack3/400/500",
+  standard: "https://placehold.co/400x500/292d2e/61ec7d?text=Mystery+Pack",
+  premium: "https://placehold.co/400x500/292d2e/a855f7?text=Premium+Pack",
+  legendary: "https://placehold.co/400x500/292d2e/fbbf24?text=Legendary+Pack",
 };
 
 async function main() {
@@ -119,7 +119,7 @@ async function main() {
       sku: `LEG-${String(i + 1).padStart(4, "0")}`,
       name: legendaryNames[i],
       description: "An extremely rare and valuable legendary card.",
-      images: [`https://picsum.photos/seed/leg${i}/300/420`],
+      images: [`https://placehold.co/300x420/1a1a1a/fbbf24?text=${encodeURIComponent(legendaryNames[i].split(' ')[0])}`],
       tierId: legendary.id,
       collection: "Pokemon",
       condition: "PSA 10",
@@ -143,7 +143,7 @@ async function main() {
       sku: `EPC-${String(i + 1).padStart(4, "0")}`,
       name: epicNames[i],
       description: "A valuable epic holo card.",
-      images: [`https://picsum.photos/seed/epic${i}/300/420`],
+      images: [`https://placehold.co/300x420/1a1a1a/a855f7?text=${encodeURIComponent(epicNames[i].split(' ')[0])}`],
       tierId: epic.id,
       collection: "Pokemon",
       condition: "PSA 8",
@@ -163,7 +163,7 @@ async function main() {
       sku: `RAR-${String(i + 1).padStart(4, "0")}`,
       name: `${rareNames[i % 10]} #${Math.floor(i / 10) + 1}`,
       description: "A rare Pokemon card.",
-      images: [`https://picsum.photos/seed/rare${i}/300/420`],
+      images: [`https://placehold.co/300x420/1a1a1a/3b82f6?text=${encodeURIComponent(rareNames[i % 10])}`],
       tierId: rare.id,
       collection: "Pokemon",
       condition: "Near Mint",
@@ -183,7 +183,7 @@ async function main() {
       sku: `COM-${String(i + 1).padStart(4, "0")}`,
       name: `${commonNames[i % 10]} #${Math.floor(i / 10) + 1}`,
       description: "A classic Pokemon card.",
-      images: [`https://picsum.photos/seed/common${i}/300/420`],
+      images: [`https://placehold.co/300x420/1a1a1a/9ca3af?text=${encodeURIComponent(commonNames[i % 10])}`],
       tierId: common.id,
       collection: "Pokemon",
       condition: "Good",
